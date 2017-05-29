@@ -51,6 +51,7 @@ public class ConectarBD {
     public void Escritura(String Consulta){
         try{
             Conectar();
+            System.out.println(estado);
             if(!conexion.isClosed()){
                 Statement st = conexion.createStatement();
                 st.executeUpdate(Consulta);

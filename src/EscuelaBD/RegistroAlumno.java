@@ -18,6 +18,7 @@ import java.io.File;
 import java.io.IOException;
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.util.ArrayList;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import javax.swing.ImageIcon;
@@ -72,6 +73,10 @@ public class RegistroAlumno extends JFrame implements ActionListener {
             "Lunes","Martes","Miércoles","Jueves","Viernes","Aula","Cupo","x"};
     final String datos[][] = {};
     Rectangle ArraySizePage[] = {PageSize.LEGAL, PageSize.LETTER};
+    ArrayList<String> datosLunes = new ArrayList<>();
+    ArrayList<String> datosMartes = new ArrayList<>();
+    ArrayList<String> materiasCursar = new ArrayList<>();
+    String control, grupo;
     
     public RegistroAlumno (String alumno){
         super("Sistema de Generación de Horarios");
@@ -211,7 +216,11 @@ public class RegistroAlumno extends JFrame implements ActionListener {
             Logger.getLogger(RegistroAlumno.class.getName()).log(Level.SEVERE, null, ex);
         }
         
-        
+        try {
+            registroMaterias();
+        } catch (SQLException ex) {
+            Logger.getLogger(RegistroAlumno.class.getName()).log(Level.SEVERE, null, ex);
+        }
     }
     
     public void datos() throws SQLException {
@@ -248,7 +257,7 @@ public class RegistroAlumno extends JFrame implements ActionListener {
             }
             dtmmaterias.addRow(fila);
         }
-        //materiasSeleccionadas.getSelectionModel().setSelectionInterval(0, 0);
+        materias.getSelectionModel().setSelectionInterval(0, 0);
         conecta.conexion.close();
     }
     
@@ -261,15 +270,82 @@ public class RegistroAlumno extends JFrame implements ActionListener {
             while (rs.next()) {
                 Object[] fila = new Object[12];
                 for (int campo = 0; campo < 12; campo++) {
-                    fila[campo] = rs.getObject(campo + 1);
+                    fila[campo] = rs.getObject(campo + 1);  
                 }
-                dtmmateriasSelec.addRow(fila);
-                dtmmaterias.removeRow(materias.getSelectedRow());
+                
+                if(materiasSelec.getRowCount()==0){
+                    datosLunes.add(materias.getValueAt(materias.getSelectedRow(), 5).toString());
+                    datosMartes.add(materias.getValueAt(materias.getSelectedRow(), 6).toString());
+                    materiasCursar.add(materias.getValueAt(materias.getSelectedRow(), 2).toString());
+                    //cupoGrupos();
+                    dtmmateriasSelec.addRow(fila);
+                    dtmmaterias.removeRow(materias.getSelectedRow());
+                } else{
+                    if(datosLunes.contains(materias.getValueAt(materias.getSelectedRow(), 5).toString())|datosMartes.contains(materias.getValueAt(materias.getSelectedRow(), 6).toString())){
+                        JOptionPane.showMessageDialog(null,"Materia con empalme");
+                    }else if(materiasCursar.contains(materias.getValueAt(materias.getSelectedRow(), 2).toString())){
+                        JOptionPane.showMessageDialog(null,"Materia registrada en otro grupo");
+                    }else{
+                        datosLunes.add(materias.getValueAt(materias.getSelectedRow(), 5).toString());
+                        datosMartes.add(materias.getValueAt(materias.getSelectedRow(), 6).toString());
+                        materiasCursar.add(materias.getValueAt(materias.getSelectedRow(), 2).toString());
+                        //cupoGrupos();
+                        dtmmateriasSelec.addRow(fila);
+                        dtmmaterias.removeRow(materias.getSelectedRow());
+                    }
+                }
+                datosLunes.remove("");
+                datosMartes.remove("");
                 materiasSelec.getSelectionModel().setSelectionInterval(0, 0);
             }
             conecta.conexion.close();
         }
     }
+    
+    public void registroMaterias() throws SQLException{
+        String Consulta = "select Clave_Grupo, C_Materia, Nombre_Materia, Nombre_Profesor, Creditos, Lunes, Martes, Miercoles, Jueves, Viernes, Aula, Cupo\n" +
+                          "from (materia join horario on C_Materia = Clave_Materia) join registro on Clave_Grupo = No_Grupo\n" +
+                          "WHERE Num_Control = '"+numcontrol.getText()+"';";
+        ResultSet rs = conecta.Lectura(Consulta);
+        while (rs.next()) {
+            Object[] fila = new Object[12];
+            for (int campo = 0; campo < 12; campo++) {
+                fila[campo] = rs.getObject(campo + 1);
+            }
+            
+            dtmmateriasSelec.addRow(fila);
+            
+        }
+        
+        for (int i = 0; i < materiasSelec.getRowCount(); i++) {  
+            datosLunes.add(materiasSelec.getValueAt(i, 5).toString());
+            datosMartes.add(materiasSelec.getValueAt(i, 6).toString());
+            materiasCursar.add(materiasSelec.getValueAt(i, 2).toString());
+        }
+            datosLunes.remove("");
+            datosMartes.remove("");
+        
+        conecta.conexion.close();
+    }
+    
+//    public void cupoGrupos() throws SQLException{
+//        if(materias.isRowSelected(materias.getSelectedRow())){
+//            String Consulta = "update horario\n" +
+//                              "set Cupo = Cupo-1\n" +
+//                              "where Clave_Grupo = '"+materias.getValueAt(materias.getSelectedRow(), 0).toString()+"';";
+//            conecta.Escritura(Consulta);
+//            agregarMaterias();
+//        }
+//    }
+    
+//    public boolean comprobarCupo() throws SQLException{
+//        String Consulta = "SELECT Existencia FROM producto WHERE Nombre = '" + TNombreP.getText() +"';";
+//        ResultSet rs = a.Lectura(Consulta);
+//        rs.last();
+//        CantidadExistencia = Integer.parseInt(rs.getObject("Existencia").toString());
+//        a.conexion.close();
+//        return CantidadExistencia >= Integer.parseInt(TCantidad.getText());
+//    }
     
     public void quitarMaterias() throws SQLException{
         if(materiasSelec.isRowSelected(materiasSelec.getSelectedRow())){
@@ -284,6 +360,11 @@ public class RegistroAlumno extends JFrame implements ActionListener {
                     fila[campo] = rs.getObject(campo + 1);
                 }
                 dtmmaterias.addRow(fila);
+                
+                datosLunes.remove(materiasSelec.getValueAt(materiasSelec.getSelectedRow(), 5));
+                datosMartes.remove(materiasSelec.getValueAt(materiasSelec.getSelectedRow(), 6));
+                materiasCursar.remove(materiasSelec.getValueAt(materiasSelec.getSelectedRow(), 2));
+                
                 dtmmateriasSelec.removeRow(materiasSelec.getSelectedRow());
                 materias.getSelectionModel().setSelectionInterval(0, 0);
             }
@@ -292,16 +373,25 @@ public class RegistroAlumno extends JFrame implements ActionListener {
     }
     
     public void registrarHorario() throws SQLException{
-        String Consulta = "insert into registro values ('" + contador + "', '" + numcontrol.getText() + "', '" + materiasSelec.getValueAt(materiasSelec.getSelectedRow(), 0).toString() +"');";
-        conecta.Escritura(Consulta);
+        for (int i = 0; i < materiasSelec.getRowCount(); i++) {  
+            System.out.println(materiasSelec.getRowCount());
+            System.out.println(materiasSelec.getValueAt(i,0).toString());
+            String Consulta = "insert into registro values ('" + materiasSelec.getValueAt(i,0).toString() + "', '" + numcontrol.getText() +"');";
+            conecta.Escritura(Consulta);
+	}
         conecta.conexion.close();
     }
     
     public void confirmar(){
         seleccion = (String) JOptionPane.showInputDialog(null, "Confirmar registro, ¿Está seguro?", "Confirmar Registro", JOptionPane.QUESTION_MESSAGE, null, opciones, opciones[0]);
         if (seleccion.equalsIgnoreCase("sí")){
+            try {
+                System.out.println("hola");
+                registrarHorario();
+            } catch (SQLException ex) {
+                Logger.getLogger(RegistroAlumno.class.getName()).log(Level.SEVERE, null, ex);
+            }
             this.dispose();
-            
         }
     }
     
@@ -358,7 +448,6 @@ public class RegistroAlumno extends JFrame implements ActionListener {
         if(e.getSource() == agregar){
             try {
                 agregarMaterias();
-                registrarHorario();
             } catch (SQLException ex) {
                 Logger.getLogger(RegistroAlumno.class.getName()).log(Level.SEVERE, null, ex);
             }
